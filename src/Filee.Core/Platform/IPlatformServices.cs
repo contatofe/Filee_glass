@@ -113,6 +113,9 @@ public interface IPlatformServices
     /// <summary>True if the user asked the OS to reduce animations.</summary>
     bool PrefersReducedMotion { get; }
 
+    /// <summary>True if the user asked the OS to reduce transparency and blur effects.</summary>
+    bool PrefersReducedTransparency => false;
+
     /// <summary>
     /// Adds or removes "start with the system". Throws <see cref="StartupEntryNotKeptException"/> where the platform can
     /// tell that the entry it added didn't stay.

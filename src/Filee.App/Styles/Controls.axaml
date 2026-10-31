@@ -12,6 +12,9 @@
   <Style Selector="c|DonutMenu">
     <Setter Property="SliceBrush" Value="{DynamicResource SurfaceBrush}" />
     <Setter Property="SliceBorderBrush" Value="{DynamicResource SubtleBorderBrush}" />
+    <Setter Property="GlassSheenBrush" Value="{DynamicResource DonutGlassSheenBrush}" />
+    <Setter Property="GlassSpecularBrush" Value="{DynamicResource DonutGlassSpecularBrush}" />
+    <Setter Property="GlassHoverBorderBrush" Value="{DynamicResource DonutGlassHoverBorderBrush}" />
     <Setter Property="CornerRadius" Value="{DynamicResource SoftRadius}" />
     <Setter Property="CenterBrush" Value="{DynamicResource SurfaceBrush}" />
     <Setter Property="AccentBrush" Value="{DynamicResource AccentBrush}" />

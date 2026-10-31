@@ -73,6 +73,8 @@ public sealed class MacOSPlatformServices : IPlatformServices
 
     public bool PrefersReducedMotion => NativeMethods.PrefersReducedMotion();
 
+    public bool PrefersReducedTransparency => NativeMethods.PrefersReducedTransparency();
+
     public void SetStartWithSystem(bool enabled, string executablePath)
     {
         var path = Path.Combine(UserLibrary, "LaunchAgents", "com.filee.app.plist");
@@ -138,6 +140,13 @@ public sealed class MacOSPlatformServices : IPlatformServices
         if (windowHandle != 0)
             NativeMethods.AddDraggedTypes(windowHandle, PasteboardPaths.DragTypes);
     }
+
+    /// <summary>
+    /// Attaches a pass-through native macOS glass backdrop (<c>NSGlassEffectView</c> on macOS 26+, falling back to
+    /// <c>NSVisualEffectView</c>) behind the radial window's Avalonia view.
+    /// </summary>
+    public MacOSGlassBackdrop? AttachGlassBackdrop(nint windowHandle) =>
+        MacOSGlassBackdrop.TryAttach(windowHandle);
 
     internal static IReadOnlyList<string> ParseSelection(string json) =>
         JsonSerializer.Deserialize<string[]>(json) ?? [];

@@ -12,10 +12,15 @@ namespace Filee.App.Views;
 
 public partial class RadialWindow : Window
 {
+    private Filee.Platform.MacOS.MacOSGlassBackdrop? _glassBackdrop;
+    private readonly List<(double CenterX, double CenterY, double OuterRadius, double InnerRadius)> _maskCircles = [];
+    private readonly List<IReadOnlyList<(double X, double Y)>> _maskSlices = [];
+
     public RadialWindow()
     {
         InitializeComponent();
         Motion.Track(this);
+        Transparency.Track(this);
 
         DragDrop.AddDragEnterHandler(Root, OnDragEnter);
         DragDrop.AddDragOverHandler(Root, OnDragOver);
@@ -23,6 +28,67 @@ public partial class RadialWindow : Window
         DragDrop.AddDropHandler(Root, OnDrop);
         // Halfway through a flip (Tab) the donut shows the other face of the profile.
         Donut.FaceSwapping += (_, _) => (DataContext as RadialViewModel)?.ToggleFace();
+        Donut.Rendered += SyncNativeGlass;
+        Donut.SizeChanged += (_, _) => SyncNativeGlass();
+        SizeChanged += (_, _) => SyncNativeGlass();
+        ActualThemeVariantChanged += (_, _) => SyncNativeGlass();
+        Closed += (_, _) =>
+        {
+            if (OperatingSystem.IsMacOS())
+            {
+                _glassBackdrop?.Dispose();
+                _glassBackdrop = null;
+            }
+        };
+    }
+
+    internal Filee.Platform.MacOS.MacOSGlassBackdrop? GlassBackdrop => _glassBackdrop;
+
+    internal void AttachMacOSGlass(Filee.Platform.MacOS.MacOSPlatformServices platform, nint windowHandle)
+    {
+        if (!OperatingSystem.IsMacOS() || windowHandle == 0)
+            return;
+        _glassBackdrop ??= platform.AttachGlassBackdrop(windowHandle);
+        SyncNativeGlass();
+    }
+
+    private void SyncNativeGlass()
+    {
+        if (!OperatingSystem.IsMacOS() || _glassBackdrop is not { } backdrop)
+            return;
+
+        var width = Donut.Bounds.Width;
+        var height = Donut.Bounds.Height;
+        var visible = IsVisible && Donut.Opacity > 0.01 && width > 1 && height > 1;
+        if (!visible || Transparency.Reduced)
+        {
+            backdrop.Update(width, height, visible: false, isDark: false, reducedTransparency: Transparency.Reduced,
+                effectiveOpacity: 0, circles: [], slices: []);
+            return;
+        }
+
+        Donut.GetGlassMaskGeometry(_maskCircles, _maskSlices);
+        var circles = new Filee.Platform.MacOS.GlassCircle[_maskCircles.Count];
+        for (var i = 0; i < _maskCircles.Count; i++)
+        {
+            var c = _maskCircles[i];
+            circles[i] = new Filee.Platform.MacOS.GlassCircle(c.CenterX, c.CenterY, c.OuterRadius, c.InnerRadius);
+        }
+
+        var slices = new Filee.Platform.MacOS.GlassSliceContour[_maskSlices.Count];
+        for (var i = 0; i < _maskSlices.Count; i++)
+            slices[i] = new Filee.Platform.MacOS.GlassSliceContour(_maskSlices[i]);
+
+        var isDark = ActualThemeVariant == Avalonia.Styling.ThemeVariant.Dark;
+        backdrop.Update(
+            width: width,
+            height: height,
+            visible: true,
+            isDark: isDark,
+            reducedTransparency: Transparency.Reduced,
+            effectiveOpacity: Donut.Opacity,
+            circles: circles,
+            slices: slices);
     }
 
     public DonutMenu DonutControl => Donut;
@@ -129,7 +195,11 @@ public partial class RadialWindow : Window
     {
         base.OnPropertyChanged(change);
         // Hidden, however that happened: a group waiting to open doesn't open on the hidden donut.
-        if (change.Property == IsVisibleProperty && !change.GetNewValue<bool>())
-            Donut.CollapseGroup();
+        if (change.Property == IsVisibleProperty)
+        {
+            if (!change.GetNewValue<bool>())
+                Donut.CollapseGroup();
+            SyncNativeGlass();
+        }
     }
 }

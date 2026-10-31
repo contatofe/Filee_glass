@@ -54,6 +54,12 @@ public sealed class ThemeSettings
     /// </summary>
     public bool? ReduceMotion { get; set; }
 
+    /// <summary>
+    /// Disables glass translucency and blur effects (accessibility).
+    /// <c>null</c> follows the operating system setting.
+    /// </summary>
+    public bool? ReduceTransparency { get; set; }
+
     public ThemeSettings Clone() => (ThemeSettings)MemberwiseClone();
 }
 

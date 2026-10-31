@@ -36,6 +36,24 @@
           <SolidColorBrush x:Key="ButtonBorderBrush" Color="#29000000" />
           <SolidColorBrush x:Key="ButtonBorderBrushPointerOver" Color="#3D000000" />
           <SolidColorBrush x:Key="ButtonBorderBrushPressed" Color="#3D000000" />
+          <!-- Liquid Glass resources for the radial donut toolbar (Light variant) -->
+          <LinearGradientBrush x:Key="DonutGlassSheenBrush" StartPoint="15%,0%" EndPoint="85%,100%">
+            <GradientStop Offset="0.0" Color="#96FFFFFF" />
+            <GradientStop Offset="0.32" Color="#32FFFFFF" />
+            <GradientStop Offset="0.72" Color="#08FFFFFF" />
+            <GradientStop Offset="1.0" Color="#18000000" />
+          </LinearGradientBrush>
+          <LinearGradientBrush x:Key="DonutGlassSpecularBrush" StartPoint="0%,0%" EndPoint="100%,100%">
+            <GradientStop Offset="0.0" Color="#F2FFFFFF" />
+            <GradientStop Offset="0.38" Color="#78FFFFFF" />
+            <GradientStop Offset="0.72" Color="#24FFFFFF" />
+            <GradientStop Offset="1.0" Color="#58FFFFFF" />
+          </LinearGradientBrush>
+          <LinearGradientBrush x:Key="DonutGlassHoverBorderBrush" StartPoint="0%,0%" EndPoint="100%,100%">
+            <GradientStop Offset="0.0" Color="#FFFFFFFF" />
+            <GradientStop Offset="0.5" Color="#B8FFFFFF" />
+            <GradientStop Offset="1.0" Color="#78FFFFFF" />
+          </LinearGradientBrush>
         </ResourceDictionary>
         <ResourceDictionary x:Key="Dark">
           <SolidColorBrush x:Key="PageBrush" Color="#1B1B19" />
@@ -59,6 +77,24 @@
           <SolidColorBrush x:Key="ButtonBorderBrush" Color="#38FFFFFF" />
           <SolidColorBrush x:Key="ButtonBorderBrushPointerOver" Color="#4DFFFFFF" />
           <SolidColorBrush x:Key="ButtonBorderBrushPressed" Color="#4DFFFFFF" />
+          <!-- Liquid Glass resources for the radial donut toolbar (Dark variant) -->
+          <LinearGradientBrush x:Key="DonutGlassSheenBrush" StartPoint="15%,0%" EndPoint="85%,100%">
+            <GradientStop Offset="0.0" Color="#52FFFFFF" />
+            <GradientStop Offset="0.32" Color="#18FFFFFF" />
+            <GradientStop Offset="0.72" Color="#04FFFFFF" />
+            <GradientStop Offset="1.0" Color="#2E000000" />
+          </LinearGradientBrush>
+          <LinearGradientBrush x:Key="DonutGlassSpecularBrush" StartPoint="0%,0%" EndPoint="100%,100%">
+            <GradientStop Offset="0.0" Color="#B0FFFFFF" />
+            <GradientStop Offset="0.38" Color="#42FFFFFF" />
+            <GradientStop Offset="0.72" Color="#14FFFFFF" />
+            <GradientStop Offset="1.0" Color="#3CFFFFFF" />
+          </LinearGradientBrush>
+          <LinearGradientBrush x:Key="DonutGlassHoverBorderBrush" StartPoint="0%,0%" EndPoint="100%,100%">
+            <GradientStop Offset="0.0" Color="#F0FFFFFF" />
+            <GradientStop Offset="0.5" Color="#98FFFFFF" />
+            <GradientStop Offset="1.0" Color="#58FFFFFF" />
+          </LinearGradientBrush>
         </ResourceDictionary>
       </ResourceDictionary.ThemeDictionaries>
 

@@ -57,7 +57,8 @@
     <Panel HorizontalAlignment="Center" VerticalAlignment="Center" IsHitTestVisible="False"
            RenderTransform="translate(0px, -70px)">
       <Border x:Name="DownloadBadge" Classes="download-badge" Classes.shown="{Binding ProgressJob.IsDownloading, FallbackValue=False}"
-              Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1"
+              Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource DonutGlassSpecularBrush}" BorderThickness="1.15"
+              BoxShadow="{DynamicResource CardShadow}"
               CornerRadius="{DynamicResource SoftRadius}" Padding="10,4" RenderTransformOrigin="50%,100%">
         <TextBlock Text="{Binding ProgressJob.DownloadText, FallbackValue=''}" FontSize="12" FontWeight="SemiBold" />
       </Border>

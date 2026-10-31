@@ -103,6 +103,71 @@ internal static class SoftPalette
         dict["SystemAccentColorDark3"] = Shade(accent, -0.45);
     }
 
+    /// <summary>Applies Liquid Glass sheen and directional specular border brushes for the radial donut toolbar.</summary>
+    public static void ApplyGlassResources(IResourceDictionary dict, bool isDark)
+    {
+        dict["DonutGlassSheenBrush"] = new LinearGradientBrush
+        {
+            StartPoint = new RelativePoint(0.15, 0.0, RelativeUnit.Relative),
+            EndPoint = new RelativePoint(0.85, 1.0, RelativeUnit.Relative),
+            GradientStops = isDark
+                ?
+                [
+                    new GradientStop(Color.Parse("#52FFFFFF"), 0.0),
+                    new GradientStop(Color.Parse("#1EFFFFFF"), 0.32),
+                    new GradientStop(Color.Parse("#06FFFFFF"), 0.62),
+                    new GradientStop(Color.Parse("#28FFFFFF"), 1.0),
+                ]
+                :
+                [
+                    new GradientStop(Color.Parse("#8CFFFFFF"), 0.0),
+                    new GradientStop(Color.Parse("#38FFFFFF"), 0.32),
+                    new GradientStop(Color.Parse("#10FFFFFF"), 0.62),
+                    new GradientStop(Color.Parse("#46FFFFFF"), 1.0),
+                ],
+        };
+
+        dict["DonutGlassSpecularBrush"] = new LinearGradientBrush
+        {
+            StartPoint = new RelativePoint(0.0, 0.0, RelativeUnit.Relative),
+            EndPoint = new RelativePoint(1.0, 1.0, RelativeUnit.Relative),
+            GradientStops = isDark
+                ?
+                [
+                    new GradientStop(Color.Parse("#B8FFFFFF"), 0.0),
+                    new GradientStop(Color.Parse("#42FFFFFF"), 0.42),
+                    new GradientStop(Color.Parse("#1EFFFFFF"), 0.72),
+                    new GradientStop(Color.Parse("#68FFFFFF"), 1.0),
+                ]
+                :
+                [
+                    new GradientStop(Color.Parse("#F0FFFFFF"), 0.0),
+                    new GradientStop(Color.Parse("#78FFFFFF"), 0.42),
+                    new GradientStop(Color.Parse("#28000000"), 0.72),
+                    new GradientStop(Color.Parse("#98FFFFFF"), 1.0),
+                ],
+        };
+
+        dict["DonutGlassHoverBorderBrush"] = new LinearGradientBrush
+        {
+            StartPoint = new RelativePoint(0.0, 0.0, RelativeUnit.Relative),
+            EndPoint = new RelativePoint(1.0, 1.0, RelativeUnit.Relative),
+            GradientStops = isDark
+                ?
+                [
+                    new GradientStop(Color.Parse("#F2FFFFFF"), 0.0),
+                    new GradientStop(Color.Parse("#98FFFFFF"), 0.48),
+                    new GradientStop(Color.Parse("#B8FFFFFF"), 1.0),
+                ]
+                :
+                [
+                    new GradientStop(Color.Parse("#FFFFFFFF"), 0.0),
+                    new GradientStop(Color.Parse("#B8FFFFFF"), 0.48),
+                    new GradientStop(Color.Parse("#D8FFFFFF"), 1.0),
+                ],
+        };
+    }
+
     /// <summary>"Softness": one radius drives every control.</summary>
     public static void ApplyCornerRadius(IResourceDictionary res, double radius)
     {

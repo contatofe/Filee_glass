@@ -76,6 +76,12 @@ public sealed partial class DonutMenu : Control
         AvaloniaProperty.Register<DonutMenu, IBrush?>(nameof(SliceBrush), Brushes.White);
     public static readonly StyledProperty<IBrush?> SliceBorderBrushProperty =
         AvaloniaProperty.Register<DonutMenu, IBrush?>(nameof(SliceBorderBrush));
+    public static readonly StyledProperty<IBrush?> GlassSheenBrushProperty =
+        AvaloniaProperty.Register<DonutMenu, IBrush?>(nameof(GlassSheenBrush));
+    public static readonly StyledProperty<IBrush?> GlassSpecularBrushProperty =
+        AvaloniaProperty.Register<DonutMenu, IBrush?>(nameof(GlassSpecularBrush));
+    public static readonly StyledProperty<IBrush?> GlassHoverBorderBrushProperty =
+        AvaloniaProperty.Register<DonutMenu, IBrush?>(nameof(GlassHoverBorderBrush));
     public static readonly StyledProperty<IBrush?> CenterBrushProperty =
         AvaloniaProperty.Register<DonutMenu, IBrush?>(nameof(CenterBrush), Brushes.White);
     public static readonly StyledProperty<IBrush?> AccentBrushProperty =
@@ -131,7 +137,8 @@ public sealed partial class DonutMenu : Control
     {
         AffectsMeasure<DonutMenu>(OuterRadiusProperty, ReserveSubRingProperty);
         AffectsRender<DonutMenu>(HoleRatioProperty, SliceOpacityProperty, CenterTitleProperty, CenterSubtitleProperty,
-            IsEditModeProperty, SliceBrushProperty, SliceBorderBrushProperty, CenterBrushProperty, AccentBrushProperty,
+            IsEditModeProperty, SliceBrushProperty, SliceBorderBrushProperty, GlassSheenBrushProperty,
+            GlassSpecularBrushProperty, GlassHoverBorderBrushProperty, CenterBrushProperty, AccentBrushProperty,
             OnAccentBrushProperty, ForegroundProperty, SecondaryForegroundProperty, SuccessBrushProperty, CornerRadiusProperty,
             CenterHintProperty, CenterHintWheelProperty);
         ItemsProperty.Changed.AddClassHandler<DonutMenu>((d, _) => d.OnItemsChanged());
@@ -174,6 +181,9 @@ public sealed partial class DonutMenu : Control
 
     public IBrush? SliceBrush { get => GetValue(SliceBrushProperty); set => SetValue(SliceBrushProperty, value); }
     public IBrush? SliceBorderBrush { get => GetValue(SliceBorderBrushProperty); set => SetValue(SliceBorderBrushProperty, value); }
+    public IBrush? GlassSheenBrush { get => GetValue(GlassSheenBrushProperty); set => SetValue(GlassSheenBrushProperty, value); }
+    public IBrush? GlassSpecularBrush { get => GetValue(GlassSpecularBrushProperty); set => SetValue(GlassSpecularBrushProperty, value); }
+    public IBrush? GlassHoverBorderBrush { get => GetValue(GlassHoverBorderBrushProperty); set => SetValue(GlassHoverBorderBrushProperty, value); }
     public IBrush? CenterBrush { get => GetValue(CenterBrushProperty); set => SetValue(CenterBrushProperty, value); }
     public IBrush? AccentBrush { get => GetValue(AccentBrushProperty); set => SetValue(AccentBrushProperty, value); }
     public IBrush? OnAccentBrush { get => GetValue(OnAccentBrushProperty); set => SetValue(OnAccentBrushProperty, value); }
@@ -210,6 +220,48 @@ public sealed partial class DonutMenu : Control
 
     /// <summary>The emphasised slice changed (-1 = none). Useful to update the centre text.</summary>
     public event EventHandler<int>? ActiveIndexChanged;
+
+    /// <summary>Raised after each <see cref="Render"/> pass so native glass backdrops can sync their shape mask.</summary>
+    internal event Action? Rendered;
+
+    protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        base.OnAttachedToVisualTree(e);
+        Transparency.Changed += OnTransparencyChanged;
+    }
+
+    protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        base.OnDetachedFromVisualTree(e);
+        Transparency.Changed -= OnTransparencyChanged;
+    }
+
+    private void OnTransparencyChanged(object? sender, EventArgs e) => InvalidateVisual();
+
+    /// <summary>
+    /// Effective background opacity for glass slices: respects <see cref="Transparency.Reduced"/> (forcing 1.0 opaque)
+    /// while modulating <see cref="SliceOpacity"/> for Liquid Glass translucency when styled.
+    /// On macOS, where a real behind-window blur + Liquid Glass SDF backdrop sits behind the slices, the Avalonia
+    /// surface fill acts as a light glass tint (0.14..0.58) so the blurred background shines through.
+    /// </summary>
+    internal double EffectiveSliceOpacity =>
+        Transparency.Reduced ? 1.0
+        : SliceBorderBrush is null ? SliceOpacity
+        : OperatingSystem.IsMacOS()
+            ? Math.Clamp(SliceOpacity * 0.56, 0.14, 0.58)
+            : SliceOpacity >= 0.995 ? 0.92
+            : Math.Clamp(SliceOpacity * 0.86, 0.08, 0.92);
+
+    /// <summary>
+    /// Effective background opacity for the centre hub and progress plate: translucent glass when enabled,
+    /// opaque when <see cref="Transparency.Reduced"/> is active or in raw borderless tests.
+    /// </summary>
+    internal double EffectiveCenterOpacity =>
+        Transparency.Reduced || SliceBorderBrush is null ? 1.0
+        : OperatingSystem.IsMacOS()
+            ? Math.Clamp(SliceOpacity * 0.62, 0.18, 0.64)
+            : SliceOpacity >= 0.995 ? 0.92
+            : Math.Clamp(SliceOpacity * 0.86, 0.18, 0.92);
 
     private int Count => Items?.Count ?? 0;
     private Point Center => new(Bounds.Width / 2, Bounds.Height / 2);
@@ -829,6 +881,7 @@ public sealed partial class DonutMenu : Control
         if (_progressMode)
         {
             RenderProgress(context, center, r1, r2, typeface, typefaceRegular);
+            Rendered?.Invoke();
             return;
         }
 
@@ -846,6 +899,8 @@ public sealed partial class DonutMenu : Control
 
         if (IsEditMode && _hoverIndex >= 0 && _hoverIndex < n && _dimmedIndex < 0 && !IsFlipping)
             DrawEditButton(context, EditButtonCenter(_hoverIndex));
+
+        Rendered?.Invoke();
     }
 
     /// <summary>The shadow, the slices and the edit mode's drop preview.</summary>
@@ -856,9 +911,7 @@ public sealed partial class DonutMenu : Control
         if (n == 0)
         {
             var ring = CreateRing(center, r1, r2);
-            context.DrawGeometry(WithOpacity(SliceBrush, SliceOpacity), BorderPen(), ring);
-            if (_dropTargetIndex >= 0)
-                context.DrawGeometry(WithOpacity(AccentBrush, 0.35), null, ring);
+            DrawGlassWedge(context, ring, enabled: true, emphasis: _dropTargetIndex >= 0 ? 0.42 : 0);
         }
 
         for (var i = 0; i < n; i++)
@@ -892,12 +945,8 @@ public sealed partial class DonutMenu : Control
             using (context.PushOpacity(Math.Clamp(open, 0, 1) * (i == _dimmedIndex ? 0.3 : 1)))
             {
                 var wedge = CreateWedge(center, r1, r2, mid, span);
-                context.DrawGeometry(WithOpacity(SliceBrush, SliceOpacity * (item.IsEnabled ? 1 : 0.55)), BorderPen(), wedge);
-
-                // The accent fades in and out with the highlight (no floor: a floor made it vanish with a jump).
                 var emphasis = i == _dropTargetIndex ? 1.0 : hover;
-                if (emphasis > 0.01 && item.IsEnabled)
-                    context.DrawGeometry(WithOpacity(AccentBrush, 0.82 * Math.Clamp(emphasis, 0, 1)), null, wedge);
+                DrawGlassWedge(context, wedge, item.IsEnabled, emphasis);
 
                 var hot = (i == ActiveIndex || i == _dropTargetIndex) && item.IsEnabled;
                 DrawLabel(context, item, center, (r1 + r2) / 2, mid, span * (r1 + r2) / 2 - 10,
@@ -922,9 +971,7 @@ public sealed partial class DonutMenu : Control
                 using (context.PushOpacity(Math.Clamp(slice.Open, 0, 1) * (slice.Dimmed ? 0.3 : 1)))
                 {
                     var wedge = CreateWedge(center, r1, r2, slice.Mid, slice.Span);
-                    context.DrawGeometry(WithOpacity(SliceBrush, SliceOpacity * (slice.Item.IsEnabled ? 1 : 0.55)), BorderPen(), wedge);
-                    if (slice.Emphasis > 0.01 && slice.Item.IsEnabled)
-                        context.DrawGeometry(WithOpacity(AccentBrush, 0.82 * Math.Clamp(slice.Emphasis, 0, 1)), null, wedge);
+                    DrawGlassWedge(context, wedge, slice.Item.IsEnabled, slice.Emphasis);
                     DrawLabel(context, slice.Item, center, (r1 + r2) / 2, slice.Mid,
                         slice.Span * (r1 + r2) / 2 - 10, r2 - r1 - 16, typeface, typefaceRegular,
                         slice.Hot && slice.Item.IsEnabled);
@@ -935,9 +982,90 @@ public sealed partial class DonutMenu : Control
             DrawPreview(context, center, r1, r2, typeface, typefaceRegular);
     }
 
+    /// <summary>
+    /// Draws a slice or ring with Liquid Glass layers: translucent tinted surface, top-lit refractive sheen,
+    /// inner lens bevel, directional specular rim light, and luminous glass hover highlight.
+    /// </summary>
+    internal void DrawGlassWedge(DrawingContext context, Geometry wedge, bool enabled, double emphasis)
+    {
+        var enabledFactor = enabled ? 1.0 : 0.55;
+        context.DrawGeometry(WithOpacity(SliceBrush, EffectiveSliceOpacity * enabledFactor), BorderPen(), wedge);
+
+        var hasGlassChrome = !Transparency.Reduced && SliceBorderBrush is not null;
+        if (hasGlassChrome)
+        {
+            // Keep refractive sheen and lens bevel strong even when the user lowers the surface tint slider,
+            // so low-opacity slices still read as physical glass lenses rather than empty outlines.
+            var sheenWeight = enabledFactor * Math.Clamp(EffectiveSliceOpacity + 0.42, 0.62, 0.96);
+            if (GlassSheenBrush is { } sheen)
+            {
+                using (context.PushOpacity(sheenWeight))
+                    context.DrawGeometry(sheen, null, wedge);
+            }
+            if (BevelPen() is { } bevelPen)
+            {
+                using (context.PushOpacity(enabledFactor * 0.58))
+                    context.DrawGeometry(null, bevelPen, wedge);
+            }
+            if (SpecularPen() is { } specularPen)
+            {
+                using (context.PushOpacity(enabledFactor))
+                    context.DrawGeometry(null, specularPen, wedge);
+            }
+        }
+
+        // The accent fades in and out with the highlight (no floor: a floor made it vanish with a jump).
+        // When Liquid Glass chrome is active, keep the accent fill translucent (0.42) with a glowing accent
+        // rim so the native blur/refraction behind the slice shines through like coloured glass.
+        if (emphasis > 0.01 && enabled)
+        {
+            var e = Math.Clamp(emphasis, 0, 1);
+            var accentAlpha = hasGlassChrome ? 0.42 : 0.82;
+            context.DrawGeometry(WithOpacity(AccentBrush, accentAlpha * e), null, wedge);
+
+            if (hasGlassChrome)
+            {
+                using (context.PushOpacity(e))
+                {
+                    if (AccentBrush is not null)
+                        context.DrawGeometry(null, new Pen(WithOpacity(AccentBrush, 0.52), 3.0), wedge);
+                    if (GlassSheenBrush is { } hoverSheen)
+                        context.DrawGeometry(hoverSheen, null, wedge);
+                    if (HoverBorderPen() is { } hoverPen)
+                        context.DrawGeometry(null, hoverPen, wedge);
+                }
+            }
+        }
+    }
+
+    /// <summary>Draws the centre hub or progress plate with Liquid Glass translucency, sheen and directional rim.</summary>
+    internal void DrawGlassDisc(DrawingContext context, Point center, double radius, bool cancelHot = false)
+    {
+        context.DrawEllipse(WithOpacity(CenterBrush, EffectiveCenterOpacity), BorderPen(), center, radius, radius);
+        if (!Transparency.Reduced && SliceBorderBrush is not null)
+        {
+            var sheenWeight = Math.Clamp(EffectiveCenterOpacity + 0.36, 0.58, 0.94);
+            if (GlassSheenBrush is { } sheen)
+            {
+                using (context.PushOpacity(sheenWeight))
+                    context.DrawEllipse(sheen, null, center, radius, radius);
+            }
+            if (BevelPen() is { } bevelPen)
+            {
+                using (context.PushOpacity(0.55))
+                    context.DrawEllipse(null, bevelPen, center, radius, radius);
+            }
+            if (SpecularPen() is { } specularPen)
+                context.DrawEllipse(null, specularPen, center, radius, radius);
+        }
+        if (cancelHot)
+            context.DrawEllipse(WithOpacity(DangerBrush, 0.22), null, center, radius, radius);
+    }
+
     private void DrawSoftShadow(DrawingContext context, Point center, double r2)
     {
         // A radial gradient ring fakes a soft drop shadow without blur effects (cheap on any GPU).
+        // Strictly 0 alpha inside (r2 - 18) so the inner hole seam remains 100% click-through.
         var shadowRadius = r2 + 14;
         var brush = new RadialGradientBrush
         {
@@ -945,7 +1073,9 @@ public sealed partial class DonutMenu : Control
             {
                 new GradientStop(Color.FromArgb(0, 0, 0, 0), 0),
                 new GradientStop(Color.FromArgb(0, 0, 0, 0), (r2 - 18) / shadowRadius),
-                new GradientStop(Color.FromArgb(46, 0, 0, 0), (r2 - 2) / shadowRadius),
+                new GradientStop(Color.FromArgb(22, 0, 0, 0), (r2 - 9) / shadowRadius),
+                new GradientStop(Color.FromArgb(42, 0, 0, 0), (r2 - 1) / shadowRadius),
+                new GradientStop(Color.FromArgb(14, 0, 0, 0), (r2 + 6) / shadowRadius),
                 new GradientStop(Color.FromArgb(0, 0, 0, 0), 1),
             },
         };
@@ -959,9 +1089,7 @@ public sealed partial class DonutMenu : Control
         var pulse = 1 + _centerPulse.Value * 0.06;
         var radius = (r1 - 6) * pulse;
         var cancelHot = _externalCenterHot;
-        context.DrawEllipse(CenterBrush, BorderPen(), center, radius, radius);
-        if (cancelHot)
-            context.DrawEllipse(WithOpacity(DangerBrush, 0.18), null, center, radius, radius);
+        DrawGlassDisc(context, center, radius, cancelHot);
 
         var maxWidth = radius * 1.6;
         var title = CachedText(CenterTitle ?? "", bold, 14, Foreground, maxWidth, maxLines: 2);
@@ -971,10 +1099,25 @@ public sealed partial class DonutMenu : Control
         var hint = string.IsNullOrEmpty(CenterHint) ? null : CachedText(CenterHint, regular, 10.5, SecondaryForeground, maxWidth * 0.85 - hintIcons);
         var total = title.Height + (string.IsNullOrEmpty(CenterSubtitle) ? 0 : subtitle.Height + 2) + (hint is null ? 0 : hint.Height + 5);
         var y = center.Y - total / 2;
+        var addHalo = !Transparency.Reduced && SliceBorderBrush is not null && SliceOpacity < 0.85;
+        if (addHalo && !string.IsNullOrEmpty(CenterTitle))
+        {
+            var haloAlpha = Math.Clamp((0.90 - SliceOpacity) * 0.72, 0.15, 0.58);
+            var titleHalo = CachedText(CenterTitle, bold, 14, CenterBrush, maxWidth, maxLines: 2);
+            using (context.PushOpacity(haloAlpha))
+                DrawCentered(context, titleHalo, center.X, y + 0.8);
+        }
         DrawCentered(context, title, center.X, y);
         y += title.Height;
         if (!string.IsNullOrEmpty(CenterSubtitle))
         {
+            if (addHalo && !cancelHot)
+            {
+                var haloAlpha = Math.Clamp((0.90 - SliceOpacity) * 0.68, 0.14, 0.54);
+                var subHalo = CachedText(CenterSubtitle, regular, 11.5, CenterBrush, maxWidth, maxLines: 2);
+                using (context.PushOpacity(haloAlpha))
+                    DrawCentered(context, subHalo, center.X, y + 2.8);
+            }
             DrawCentered(context, subtitle, center.X, y + 2);
             y += subtitle.Height + 2;
         }
@@ -1066,6 +1209,23 @@ public sealed partial class DonutMenu : Control
         var total = label.Height + (caption?.Height ?? 0);
         var anchor = DonutGeometry.PointAt(center, radius, angle);
         var y = anchor.Y - total / 2;
+
+        // Subtle contrast halo when background glass is highly translucent so labels stay readable over any background.
+        if (!hot && !Transparency.Reduced && SliceBorderBrush is not null && SliceOpacity < 0.85 && item.IsEnabled)
+        {
+            var haloAlpha = Math.Clamp((0.90 - SliceOpacity) * 0.72, 0.15, 0.58);
+            var haloText = CachedText(text, bold, LabelSize(text, bold, width), SliceBrush, width, maxLines: 2);
+            using (context.PushOpacity(haloAlpha))
+                DrawCentered(context, haloText, anchor.X, y + 0.8);
+            if (caption is not null)
+            {
+                var capHalo = CachedText(item.Caption!, regular, 10.5, SliceBrush, width,
+                    maxLines: label.Height + 28 < maxHeight ? 2 : 1);
+                using (context.PushOpacity(haloAlpha))
+                    DrawCentered(context, capHalo, anchor.X, y + label.Height + 0.8);
+            }
+        }
+
         DrawCentered(context, label, anchor.X, y);
         if (caption is not null)
             DrawCentered(context, caption, anchor.X, y + label.Height);
@@ -1156,6 +1316,12 @@ public sealed partial class DonutMenu : Control
         context.DrawText(text, new Point(centerX - text.MaxTextWidth / 2, top));
 
     private Pen? BorderPen() => SliceBorderBrush is null ? null : new Pen(SliceBorderBrush, 1);
+
+    private Pen? BevelPen() => GlassSheenBrush is null ? null : new Pen(GlassSheenBrush, 2.8);
+
+    private Pen? SpecularPen() => GlassSpecularBrush is null ? null : new Pen(GlassSpecularBrush, 1.25);
+
+    private Pen? HoverBorderPen() => (GlassHoverBorderBrush ?? GlassSpecularBrush) is { } brush ? new Pen(brush, 1.45) : null;
 
     // Text shaping is much more expensive than the slice transforms. Keep layouts across frames,
     // with all layout/paint inputs in the key so language, theme and hover changes remain correct.
@@ -1269,5 +1435,231 @@ public sealed partial class DonutMenu : Control
             ctx.EndFigure(true);
         }
         return geometry;
+    }
+
+    // ───────────────────────── Native Glass Mask Contours ─────────────────────────
+
+    /// <summary>
+    /// Populates <paramref name="circles"/> and <paramref name="slices"/> with the exact active geometry of the donut
+    /// (hub, visible slices on current and flipping faces, expanded sub-rings, or progress plate) in control coordinates.
+    /// The inner seam between the hub (<c>r1 - 6</c>) and slices (<c>r1</c>), inter-slice gaps, and outer empty space
+    /// are excluded so the native macOS glass backdrop never blurs a rectangle behind the menu.
+    /// </summary>
+    internal void GetGlassMaskGeometry(
+        List<(double CenterX, double CenterY, double OuterRadius, double InnerRadius)> circles,
+        List<IReadOnlyList<(double X, double Y)>> slices)
+    {
+        circles.Clear();
+        slices.Clear();
+
+        var center = Center;
+        var r2 = OuterRadius;
+        var r1 = InnerRadius;
+        var n = Count;
+
+        if (_progressMode)
+        {
+            var collapseAll = CollapseEnd <= 0 ? 1 : Math.Clamp(_collapseClock / CollapseEnd, 0, 1);
+            if (collapseAll < 1)
+            {
+                for (var i = 0; i < n; i++)
+                {
+                    var t = Math.Clamp((_collapseClock - i * CollapseStagger) / CollapseSeconds, 0, 1);
+                    var c = EaseInCubic(t);
+                    if (c >= 0.999)
+                        continue;
+                    var scale = 1 - 0.8 * c;
+                    var transform =
+                        Matrix.CreateTranslation(-center.X, -center.Y) *
+                        Matrix.CreateRotation(c * 0.25) *
+                        Matrix.CreateScale(scale, scale) *
+                        Matrix.CreateTranslation(center.X, center.Y);
+                    AddWedgeContour(circles, slices, center, r1, r2, DonutGeometry.MidAngle(i, n), DonutGeometry.Span(n), SliceCornerRadius, transform);
+                }
+                var plate = RingRadius + RingStroke + 2;
+                var holeRadius = Lerp(r1 - 6, plate, EaseInCubic(collapseAll));
+                if (holeRadius > 0.5)
+                    circles.Add((center.X, center.Y, holeRadius, 0));
+                return;
+            }
+
+            var fade = _fadeClock >= 0 ? Math.Clamp(_fadeClock / FadeSeconds, 0, 1) : 0;
+            var handOff = _handOffClock >= 0 ? Math.Clamp(_handOffClock / HandOffSeconds, 0, 1) : 0;
+            var ringScale = Math.Max(0, _ring.Value) * (1 - 0.15 * fade) * (1 - 0.7 * EaseInCubic(handOff));
+            var opacity = (1 - fade) * (1 - handOff);
+            if (ringScale > 0.01 && opacity > 0.01)
+            {
+                var plateRadius = (RingRadius + RingStroke + 2) * ringScale;
+                circles.Add((center.X, center.Y, plateRadius, 0));
+            }
+            return;
+        }
+
+        // Centre hub circle (leaving the seam between r1 - 6 and r1 unmasked)
+        var pulse = 1 + _centerPulse.Value * 0.06;
+        var hubRadius = (r1 - 6) * pulse;
+        if (hubRadius > 0.5)
+            circles.Add((center.X, center.Y, hubRadius, 0));
+
+        if (n == 0)
+        {
+            circles.Add((center.X, center.Y, r2, r1));
+            return;
+        }
+
+        for (var i = 0; i < n; i++)
+        {
+            if (IsFlipping && SliceFlipWidth(false, i) <= 0.01)
+                continue;
+            var open = i < _open.Length ? _open[i] : 1;
+            if (open <= 0.001)
+                continue;
+            var previewing = IsEditMode && i < _mid.Length;
+            var hover = i < _hover.Length && _previewSlot < 0 ? _hover[i].Value : 0;
+            var mid = previewing ? _mid[i].Value : DonutGeometry.MidAngle(i, n);
+            var span = previewing ? _span[i].Value : DonutGeometry.Span(n);
+            if (span < 0.01)
+                continue;
+            var offset = DonutGeometry.PointAt(new Point(0, 0), hover * PopOut, mid);
+            var scale = 0.78 + 0.22 * open;
+            var rotate = (1 - Math.Min(open, 1)) * -0.12;
+            var transform =
+                Matrix.CreateTranslation(-center.X, -center.Y) *
+                Matrix.CreateRotation(rotate) *
+                Matrix.CreateScale(scale * (1 + hover * 0.025), scale * (1 + hover * 0.025)) *
+                Matrix.CreateTranslation(center.X + offset.X, center.Y + offset.Y) *
+                SliceFlipTransform(false, i);
+            AddWedgeContour(circles, slices, center, r1, r2, mid, span, SliceCornerRadius, transform);
+        }
+
+        if (_oldFace is { } old)
+        {
+            for (var i = 0; i < old.Length; i++)
+            {
+                var slice = old[i];
+                if (SliceFlipWidth(true, i) <= 0.01 || slice.Open <= 0.001 || slice.Span < 0.01)
+                    continue;
+                var offset = DonutGeometry.PointAt(new Point(0, 0), slice.Hover * PopOut, slice.Mid);
+                var scale = 0.78 + 0.22 * slice.Open;
+                var rotate = (1 - Math.Min(slice.Open, 1)) * -0.12;
+                var transform =
+                    Matrix.CreateTranslation(-center.X, -center.Y) *
+                    Matrix.CreateRotation(rotate) *
+                    Matrix.CreateScale(scale * (1 + slice.Hover * 0.025), scale * (1 + slice.Hover * 0.025)) *
+                    Matrix.CreateTranslation(center.X + offset.X, center.Y + offset.Y) *
+                    SliceFlipTransform(true, i);
+                AddWedgeContour(circles, slices, center, r1, r2, slice.Mid, slice.Span, SliceCornerRadius, transform);
+            }
+        }
+
+        if (!IsEditMode && _shownExpanded >= 0 && _shownExpanded < n && _expand.Value > 0.01 &&
+            Items![_shownExpanded].Children is { Count: > 0 } children)
+        {
+            AddSubRingContours(slices, center, _shownExpanded, children.Count, DonutGeometry.MidAngle(_shownExpanded, n),
+                SubSpanOf(children.Count), _expand.Value, false);
+        }
+
+        if (_oldGroup is { } oldGroup && SliceFlipWidth(true, oldGroup.Index) > 0.01 && _oldFace is not null)
+        {
+            AddSubRingContours(slices, center, oldGroup.Index, oldGroup.Children.Count, _oldFace[oldGroup.Index].Mid,
+                oldGroup.Span, oldGroup.Expansion, true);
+        }
+    }
+
+    private void AddSubRingContours(List<IReadOnlyList<(double X, double Y)>> slices, Point center, int group,
+        int childCount, double parentMid, double subSpan, double expansion, bool oldFace)
+    {
+        var (inner, outer) = SubRadii;
+        var t = Math.Max(0, expansion);
+        var anchor = DonutGeometry.PointAt(center, inner, parentMid);
+        var scale = 0.8 + 0.2 * t;
+        var transform = Matrix.CreateTranslation(-anchor.X, -anchor.Y) * Matrix.CreateScale(scale, scale) *
+                        Matrix.CreateTranslation(anchor.X, anchor.Y) * SliceFlipTransform(oldFace, group);
+        for (var k = 0; k < childCount; k++)
+        {
+            var mid = DonutGeometry.SubMidAngle(parentMid, k, childCount, subSpan);
+            slices.Add(SampleWedgeOutline(center, inner, outer, mid, subSpan, SliceCornerRadius, transform));
+        }
+    }
+
+    private static void AddWedgeContour(
+        List<(double CenterX, double CenterY, double OuterRadius, double InnerRadius)> circles,
+        List<IReadOnlyList<(double X, double Y)>> slices,
+        Point center, double r1, double r2, double mid, double span, double cornerRadius, Matrix transform)
+    {
+        if (span >= 2 * Math.PI - 0.001 && transform.IsIdentity)
+        {
+            circles.Add((center.X, center.Y, r2, r1));
+            return;
+        }
+        slices.Add(SampleWedgeOutline(center, r1, r2, mid, span, cornerRadius, transform));
+    }
+
+    private static IReadOnlyList<(double X, double Y)> SampleWedgeOutline(
+        Point center, double r1, double r2, double mid, double span, double cornerRadius, Matrix transform)
+    {
+        static (double X, double Y) Apply(Point p, Matrix m)
+        {
+            var tp = p.Transform(m);
+            return (tp.X, tp.Y);
+        }
+
+        var outline = DonutGeometry.Wedge(center, r1, r2, mid, Math.Min(span, 2 * Math.PI - 0.002), GapPixels, cornerRadius);
+        var pts = new List<(double X, double Y)>(36);
+        var cur = outline.Start;
+        pts.Add(Apply(cur, transform));
+
+        foreach (var step in outline.Steps)
+        {
+            if (!step.IsArc)
+            {
+                cur = step.To;
+                pts.Add(Apply(cur, transform));
+                continue;
+            }
+
+            var dx = step.To.X - cur.X;
+            var dy = step.To.Y - cur.Y;
+            var chord = Math.Sqrt(dx * dx + dy * dy);
+            var r = step.ArcRadius;
+            if (chord < 0.001 || r < 0.001)
+            {
+                cur = step.To;
+                pts.Add(Apply(cur, transform));
+                continue;
+            }
+
+            // Reconstruct the circle centre of the SVG-style arc from cur -> step.To
+            var mx = (cur.X + step.To.X) * 0.5;
+            var my = (cur.Y + step.To.Y) * 0.5;
+            var h = Math.Sqrt(Math.Max(0, r * r - chord * chord * 0.25));
+            var sign = step.Clockwise != step.IsLargeArc ? 1.0 : -1.0;
+            var cx = mx + sign * (-dy / chord) * h;
+            var cy = my + sign * (dx / chord) * h;
+
+            var a0 = Math.Atan2(cur.Y - cy, cur.X - cx);
+            var a1 = Math.Atan2(step.To.Y - cy, step.To.X - cx);
+            var da = a1 - a0;
+            if (step.Clockwise)
+            {
+                while (da <= 0)
+                    da += 2 * Math.PI;
+            }
+            else
+            {
+                while (da >= 0)
+                    da -= 2 * Math.PI;
+            }
+
+            var subdivisions = r >= r1 - 1 ? 12 : 4;
+            for (var s = 1; s <= subdivisions; s++)
+            {
+                var a = a0 + da * s / subdivisions;
+                pts.Add(Apply(new Point(cx + r * Math.Cos(a), cy + r * Math.Sin(a)), transform));
+            }
+            cur = step.To;
+        }
+
+        return pts;
     }
 }

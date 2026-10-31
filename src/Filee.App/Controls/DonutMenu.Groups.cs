@@ -186,6 +186,8 @@ public sealed partial class DonutMenu
         if (_shownExpanded != group)
             _expand = default;
         _expanded = _shownExpanded = group;
+        if (!Motion.Enabled)
+            _expand = new Spring { Value = 1 };
         ClearPending();
         ActiveIndexChanged?.Invoke(this, ActiveIndex);
         StartAnimation();
@@ -315,6 +317,11 @@ public sealed partial class DonutMenu
     {
         _expanded = -1;
         _ringFromKeys = false;
+        if (!Motion.Enabled)
+        {
+            _expand = default;
+            _shownExpanded = -1;
+        }
         ClearPending();
         SetSub(-1);
         StartAnimation();
@@ -427,10 +434,8 @@ public sealed partial class DonutMenu
                 var item = children[k];
                 var mid = DonutGeometry.SubMidAngle(parentMid, k, children.Count, subSpan);
                 var wedge = CreateWedge(center, inner, outer, mid, subSpan);
-                context.DrawGeometry(WithOpacity(SliceBrush, SliceOpacity * (item.IsEnabled ? 1 : 0.55)), BorderPen(), wedge);
                 var hot = k == subHover && expanded && item.IsEnabled;
-                if (hot)
-                    context.DrawGeometry(WithOpacity(AccentBrush, 0.82), null, wedge);
+                DrawGlassWedge(context, wedge, item.IsEnabled, hot ? 1.0 : 0);
                 DrawLabel(context, item, center, (inner + outer) / 2, mid, subSpan * (inner + outer) / 2 - 8,
                     SubBand - 8, bold, regular, hot);
             }

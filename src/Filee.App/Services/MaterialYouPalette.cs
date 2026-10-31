@@ -29,33 +29,39 @@ public sealed class MaterialYouPalette
     public required Color OnAccent { get; init; }
 
     /// <summary>Creates an Avalonia ResourceDictionary mapping standard Filee theme keys to solid brushes and resources.</summary>
-    public ResourceDictionary ToResourceDictionary() => new()
+    public ResourceDictionary ToResourceDictionary()
     {
-        ["PageBrush"] = new SolidColorBrush(Page),
-        ["SurfaceBrush"] = new SolidColorBrush(Surface),
-        ["SurfaceAltBrush"] = new SolidColorBrush(SurfaceAlt),
-        ["SubtleBorderBrush"] = new SolidColorBrush(SubtleBorder),
-        ["TextPrimaryBrush"] = new SolidColorBrush(TextPrimary),
-        ["TextSecondaryBrush"] = new SolidColorBrush(TextSecondary),
-        ["DangerBrush"] = new SolidColorBrush(Danger),
-        ["SuccessBrush"] = new SolidColorBrush(Success),
-        ["WarningBrush"] = new SolidColorBrush(Warning),
-        ["CardShadow"] = CardShadow,
+        var isDark = Luminance(Surface) < 0.5;
+        var dict = new ResourceDictionary
+        {
+            ["PageBrush"] = new SolidColorBrush(Page),
+            ["SurfaceBrush"] = new SolidColorBrush(Surface),
+            ["SurfaceAltBrush"] = new SolidColorBrush(SurfaceAlt),
+            ["SubtleBorderBrush"] = new SolidColorBrush(SubtleBorder),
+            ["TextPrimaryBrush"] = new SolidColorBrush(TextPrimary),
+            ["TextSecondaryBrush"] = new SolidColorBrush(TextSecondary),
+            ["DangerBrush"] = new SolidColorBrush(Danger),
+            ["SuccessBrush"] = new SolidColorBrush(Success),
+            ["WarningBrush"] = new SolidColorBrush(Warning),
+            ["CardShadow"] = CardShadow,
 
-        ["AccentColor"] = Accent,
-        ["AccentBrush"] = new SolidColorBrush(Accent),
-        ["AccentSoftBrush"] = new SolidColorBrush(AccentSoft),
-        ["AccentFaintBrush"] = new SolidColorBrush(AccentFaint),
-        ["AccentStrongBrush"] = new SolidColorBrush(AccentStrong),
-        ["OnAccentBrush"] = new SolidColorBrush(OnAccent),
-        ["SystemAccentColor"] = Accent,
-        ["SystemAccentColorLight1"] = SoftPalette.Shade(Accent, 0.15),
-        ["SystemAccentColorLight2"] = SoftPalette.Shade(Accent, 0.30),
-        ["SystemAccentColorLight3"] = SoftPalette.Shade(Accent, 0.45),
-        ["SystemAccentColorDark1"] = SoftPalette.Shade(Accent, -0.15),
-        ["SystemAccentColorDark2"] = SoftPalette.Shade(Accent, -0.30),
-        ["SystemAccentColorDark3"] = SoftPalette.Shade(Accent, -0.45),
-    };
+            ["AccentColor"] = Accent,
+            ["AccentBrush"] = new SolidColorBrush(Accent),
+            ["AccentSoftBrush"] = new SolidColorBrush(AccentSoft),
+            ["AccentFaintBrush"] = new SolidColorBrush(AccentFaint),
+            ["AccentStrongBrush"] = new SolidColorBrush(AccentStrong),
+            ["OnAccentBrush"] = new SolidColorBrush(OnAccent),
+            ["SystemAccentColor"] = Accent,
+            ["SystemAccentColorLight1"] = SoftPalette.Shade(Accent, 0.15),
+            ["SystemAccentColorLight2"] = SoftPalette.Shade(Accent, 0.30),
+            ["SystemAccentColorLight3"] = SoftPalette.Shade(Accent, 0.45),
+            ["SystemAccentColorDark1"] = SoftPalette.Shade(Accent, -0.15),
+            ["SystemAccentColorDark2"] = SoftPalette.Shade(Accent, -0.30),
+            ["SystemAccentColorDark3"] = SoftPalette.Shade(Accent, -0.45),
+        };
+        SoftPalette.ApplyGlassResources(dict, isDark);
+        return dict;
+    }
 
     /// <summary>True if the colour is monochrome (low saturation or black/white/charcoal).</summary>
     public static bool IsMonochrome(Color c)

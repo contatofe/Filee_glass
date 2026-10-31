@@ -599,6 +599,7 @@ public sealed class RadialController(
         var position = WindowPosition(cursor, screen?.WorkingArea, sidePx);
 
         Motion.Refresh();
+        Transparency.Refresh();
         window.Position = position;
         if (!window.IsVisible)
             window.Show();
@@ -609,10 +610,14 @@ public sealed class RadialController(
         if (window.TryGetPlatformHandle()?.Handle is { } handle)
         {
             platform.RaiseTopmost(handle);
-            if (!_fileDragsAccepted && OperatingSystem.IsMacOS() && platform is Filee.Platform.MacOS.MacOSPlatformServices mac)
+            if (OperatingSystem.IsMacOS() && platform is Filee.Platform.MacOS.MacOSPlatformServices mac)
             {
-                mac.AcceptFileDrags(handle);
-                _fileDragsAccepted = true;
+                window.AttachMacOSGlass(mac, handle);
+                if (!_fileDragsAccepted)
+                {
+                    mac.AcceptFileDrags(handle);
+                    _fileDragsAccepted = true;
+                }
             }
         }
         _visible = true;

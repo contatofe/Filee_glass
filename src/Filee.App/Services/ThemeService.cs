@@ -123,6 +123,8 @@ public sealed class ThemeService(IPlatformServices platform)
                 var darkDict = new ResourceDictionary();
                 SoftPalette.ApplyMonochromeAccent(lightDict, isDark: false);
                 SoftPalette.ApplyMonochromeAccent(darkDict, isDark: true);
+                SoftPalette.ApplyGlassResources(lightDict, isDark: false);
+                SoftPalette.ApplyGlassResources(darkDict, isDark: true);
                 ApplyCustomOverrides(lightDict, custom?.Light);
                 ApplyCustomOverrides(darkDict, custom?.Dark);
                 res.ThemeDictionaries[ThemeVariant.Light] = lightDict;
@@ -137,6 +139,8 @@ public sealed class ThemeService(IPlatformServices platform)
                 var darkDict = new ResourceDictionary();
                 SoftPalette.ApplyAccent(lightDict, lightAccent);
                 SoftPalette.ApplyAccent(darkDict, darkAccent);
+                SoftPalette.ApplyGlassResources(lightDict, isDark: false);
+                SoftPalette.ApplyGlassResources(darkDict, isDark: true);
                 ApplyCustomOverrides(lightDict, custom?.Light);
                 ApplyCustomOverrides(darkDict, custom?.Dark);
                 res.ThemeDictionaries[ThemeVariant.Light] = lightDict;
@@ -161,6 +165,7 @@ public sealed class ThemeService(IPlatformServices platform)
         }
 
         Motion.Configure(theme.ReduceMotion, () => _platform.PrefersReducedMotion);
+        Transparency.Configure(theme.ReduceTransparency, () => _platform.PrefersReducedTransparency);
     }
 
     /// <summary>The UI font chain for <paramref name="language"/> (see <see cref="SoftPalette.FontFamilies"/>).</summary>

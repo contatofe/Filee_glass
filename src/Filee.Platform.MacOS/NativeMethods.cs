@@ -120,6 +120,13 @@ internal static class NativeMethods
         return SendBool(workspace, sel_registerName("accessibilityDisplayShouldReduceMotion"));
     }
 
+    internal static bool PrefersReducedTransparency()
+    {
+        using var pool = new AutoreleasePool();
+        var workspace = Send(objc_getClass("NSWorkspace"), sel_registerName("sharedWorkspace"));
+        return SendBool(workspace, sel_registerName("accessibilityDisplayShouldReduceTransparency"));
+    }
+
     internal static void RaiseTopmost(nint window)
     {
         const nint canJoinAllSpaces = 1, moveToActiveSpace = 1 << 1;
